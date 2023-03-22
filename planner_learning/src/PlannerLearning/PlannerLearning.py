@@ -30,11 +30,12 @@ class PlanLearning(PlanBase):
             # Eliminate slow-down maneuver, gives ambigous labels.
             self.end_ref_percentage = 0.95
         else:
-            self.end_ref_percentage = 0.8
-        self.data_pub = rospy.Publisher("/hummingbird/agile_autonomy/start_flying", Bool,
+            self.end_ref_percentage = 0.99
+        self.data_pub = rospy.Publisher("/hummingbird/agile_autonomy_ab/start_flying", Bool,
                                         queue_size=1)  # Stop upon some condition
+
         self.planner_succed_sub = rospy.Subscriber("/test_primitive/completed_planning",
-                                                  Bool, self.planner_succed_callback, queue_size=1)
+                                                  Bool, self.planner_succed_callback, queue_size=10)
         self.label_data_pub = rospy.Publisher("/hummingbird/start_label", Bool,
                                               queue_size=1)  # Stop upon some condition
         self.success_subs = rospy.Subscriber("success_reset", Empty,
@@ -67,22 +68,20 @@ class PlanLearning(PlanBase):
 
     def callback_fly(self, data):
         # If self.use_network is true, then trajectory is already loaded
+        # print("_________________________", data.data, self.use_network)
         if data.data and (not self.use_network):
             # Load pointcloud and make kdtree out of it
             rollout_dir = os.path.join(self.config.expert_folder,
                                        sorted(os.listdir(self.config.expert_folder))[-1])
-            pointcloud_fname = os.path.join(
-                rollout_dir, "pointcloud-unity.ply")
-            print("Reading pointcloud from %s" % pointcloud_fname)
-            self.pcd = o3d.io.read_point_cloud(pointcloud_fname)
-            self.pcd_tree = o3d.geometry.KDTreeFlann(self.pcd)
-            # get dimensions prom point cloud
-
-            self.pc_max = self.pcd.get_max_bound()
-            self.pc_min = self.pcd.get_min_bound()
-            print("min max pointcloud")
-            print(self.pc_max)
-            print(self.pc_min)
+            # pointcloud_fname = os.path.join(
+            #     rollout_dir, "pointcloud-unity.ply")
+            # print("Reading pointcloud from %s" % pointcloud_fname)
+            # self.pcd = o3d.io.read_point_cloud(pointcloud_fname)
+            # self.pcd_tree = o3d.geometry.KDTreeFlann(self.pcd)
+            # # get dimensions prom point cloud
+            #
+            self.pc_max = [20.01, 40.01, 6.01]
+            self.pc_min = [-20.01, -0.01, -0.01]
 
             # Load the reference trajectory
             if self.config.track_global_traj:
@@ -103,6 +102,7 @@ class PlanLearning(PlanBase):
         if (not data.data):
             self.maneuver_complete = True
             self.use_network = False
+            # print("___________________________________", data.data, "__________________________________")
 
     def train(self):
         self.is_training = True
@@ -122,11 +122,11 @@ class PlanLearning(PlanBase):
 
     def callback_success_reset(self, data):
         print("Received call to Clear Buffer and Restart Experiment")
-        os.system("rosservice call /gazebo/pause_physics")
+        # os.system("rosservice call /gazebo/pause_physics")
+        self.reference_initialized = False
         self.rollout_idx += 1
         self.use_network = False
         self.pcd = None
-        self.reference_initialized = False
         self.maneuver_complete = False
         self.counter = 1000
         self.pcd_tree = None
@@ -140,13 +140,14 @@ class PlanLearning(PlanBase):
         self.planner_succed = True
         self.reset_queue()
         self.reset_metrics()
-        print("Resetting experiment")
-        os.system("rosservice call /gazebo/unpause_physics")
+        # print("Resetting experiment")
+        # os.system("rosservice call /gazebo/unpause_physics")
         print('Done Reset')
 
     def check_task_progress(self, _timer):
         # go here if there are problems with the generation of traj
         # No need to check anymore
+        # print("maneuver_complete: ", self.maneuver_complete)
         if self.maneuver_complete:
             return
         if not self.planner_succed:
@@ -156,15 +157,15 @@ class PlanLearning(PlanBase):
             return
 
         # check if pointcloud is ready
-        if self.pcd is None or (self.pc_min is None):
-            return
+        # if self.pcd is None or (self.pc_min is None):
+        #     return
         # check if reference is ready
         if not self.reference_initialized:
             return
-
         if (self.reference_progress / (self.reference_len)) > self.end_ref_percentage:
             print("It worked well. (Arrived at %d / %d)" % (self.reference_progress, self.reference_len))
             self.publish_stop_recording_msg()
+            return
 
         # check if crashed into something
         quad_position = [self.odometry.pose.pose.position.x,
@@ -179,8 +180,8 @@ class PlanLearning(PlanBase):
             print(quad_position)
             self.publish_stop_recording_msg()
             return
-        if self.reference_progress > 50: # first second used to warm up
-            self.update_metrics(quad_position)
+        # if self.reference_progress > 50: # first second used to warm up
+        #     self.update_metrics(quad_position)
 
     def update_metrics(self, quad_position):
         # Meters until crash
@@ -214,7 +215,15 @@ class PlanLearning(PlanBase):
             self.crashed = False
 
     def evaluate_dagger_condition(self):
-        if self.reference_progress < 50:
+        # print("self.reference_progress: ", self.reference_progress)
+        # if (self.reference_progress / (self.reference_len)) > 0.8:
+        #     # At the beginning always use expert (otherwise gives gazebo problems)
+        #     print("ending up!")
+        #     return False
+        if self.config.track_global_traj:
+            return False
+
+        if self.reference_progress < 20:
             # At the beginning always use expert (otherwise gives gazebo problems)
             print("Starting up!")
             return False

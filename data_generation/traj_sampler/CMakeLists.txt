@@ -46,10 +46,10 @@ target_link_libraries(kdtree ${Open3D_LIBRARIES}
 
 cs_add_library(traj_sampler src/traj_sampler.cpp)
 target_include_directories(traj_sampler PUBLIC
-        ../../../rpg_mpc/model/quadrotor_mpc_codegen/
-        ../../../rpg_mpc/externals/qpoases
-        ../../../rpg_mpc/externals/qpoases/INCLUDE
-        ../../../rpg_mpc/externals/qpoases/SRC)
+        ../../../ThirdP/rpg_mpc/model/quadrotor_mpc_codegen/
+        ../../../ThirdP/rpg_mpc/externals/qpoases
+        ../../../ThirdP/rpg_mpc/externals/qpoases/INCLUDE
+        ../../../ThirdP/rpg_mpc/externals/qpoases/SRC)
 target_link_libraries(traj_sampler
         kdtree
         ${LAPACK_LIBRARIES}

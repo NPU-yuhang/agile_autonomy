@@ -77,7 +77,7 @@ class PlanDataset(Dataset):
 
     def _decode_experiment_dir(self, dir_subpath):
         all_images = sorted(os.listdir(os.path.join(dir_subpath, 'img')))
-        all_images = [f for f in all_images if ("frame_left" in f)]
+        all_images = [f for f in all_images if ("depth" in f)]
         all_traj = os.listdir(os.path.join(dir_subpath, 'trajectories'))
         all_traj = [f for f in all_traj if \
                         f.startswith('trajectories_{}'.format(self.config.ref_frame)) and f.endswith('.{}'.format(self.data_format))]
@@ -131,6 +131,7 @@ class PlanDataset(Dataset):
         elif self.config.velocity_frame != 'wf':
             raise IOError("Velocity Frame is unclear")
         num_images = len(all_images)
+        print(num_images, " ", num_files)
         assert num_files == num_images, "Number of images does not match"
 
         # get the trajectory
@@ -162,10 +163,10 @@ class PlanDataset(Dataset):
             traj_fname = os.path.join(dir_subpath, "trajectories",
                                           "trajectories_{}_{:08d}.{}".format(self.config.ref_frame, k, "npy"))
             depth_fname = os.path.join(dir_subpath, "img", "depth_{:08d}.{}".format(k+1, "tif"))
-            if os.path.isfile(img_fname) and \
-                    os.path.isfile(traj_fname) and \
+            print(reference_progress[k], os.path.isfile(traj_fname), " ", os.path.isfile(traj_fname))
+            if os.path.isfile(traj_fname) and \
                     os.path.isfile(depth_fname) and \
-                    reference_progress[k] > 50:
+                    reference_progress[k] > 20:
                 is_valid = True
             if is_valid:
                 self.traj_fnames.append(traj_fname)

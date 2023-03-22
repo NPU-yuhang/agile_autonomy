@@ -3,7 +3,7 @@
 
     <group ns="$(arg quad_name)">
         <!-- Label Generation -->
-        <arg name="data_dir" default="$(find agile_autonomy)/../data"/>
+        <arg name="data_dir" default="/home/hyyu/AvoidBench/src/agile_autonomy/data_generation/data"/>
         <node pkg="traj_sampler" type="generate_label" name="generate_label_0" output="screen"> <!--  launch-prefix="gdb -ex run - -args" -->
             <param name="data_dir" value="$(arg data_dir)"/>
             <param name="n_threads" value="8"/>

@@ -17,7 +17,7 @@
 #include "autopilot/autopilot_helper.h"
 #include "nav_msgs/Odometry.h"
 #include "quadrotor_common/trajectory.h"
-#include "quadrotor_msgs/Trajectory.h"
+#include "rpg_quadrotor_msgs/Trajectory.h"
 #include "ros/ros.h"
 #include "rpg_common/pose.h"
 #include "rpg_mpc/mpc_controller.h"

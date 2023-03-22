@@ -385,6 +385,7 @@ void TrajSampler::computeLabelBSplineSampling(
   double prev_cost = std::numeric_limits<double>::max();
   double rand_theta = 0.0;
   double rand_phi = 0.0;
+  std::cout<<"max_steps_metropolis: "<<max_steps_metropolis<<"  bspline_anchors: "<<bspline_anchors<<std::endl;
   for (int step = 0; step < max_steps_metropolis; step++) {
     TrajectoryExt cand_rollout(reference_trajectory, FrameID::Body,
                                state_estimate_point);
@@ -403,7 +404,7 @@ void TrajSampler::computeLabelBSplineSampling(
 
     double anchor_dt = (traj_dt_ * traj_len_) / bspline_anchors;
     double anchor_px, anchor_py, anchor_pz;
-
+    
     for (int anchor_idx = 1; anchor_idx <= bspline_anchors; anchor_idx++) {
       if (x_vec_prev.empty()) {
         rpg::Pose T_W_S = rpg::Pose(state_estimate_point.position,
@@ -464,10 +465,12 @@ void TrajSampler::computeLabelBSplineSampling(
     cand_rollout.enableYawing(true);
     cand_rollout.convertToFrame(FrameID::World, state_estimate_point.position,
                                 state_estimate_point.orientation);
+    ros::WallTime t2 = ros::WallTime::now();
 
     cand_rollout.recomputeTrajectory();
+    ros::WallTime t0 = ros::WallTime::now();
     getRolloutData(cand_rollout);
-
+    // std::cout<<cand_rollout.getPoints().size()<<std::endl;
     // compute cost for each trajectory
     computeCost(state_array_h_, reference_states_h_, input_array_h_,
                 reference_inputs_h_, cost_array_h_, accumulated_cost_array_h_);
@@ -475,7 +478,6 @@ void TrajSampler::computeLabelBSplineSampling(
     bool in_collision =
         kd_tree->query_kdtree(state_array_h_, accumulated_cost_array_h_,
                               traj_len_, query_every_nth_point, false);
-
     if (in_collision) {
       // bad sample, start with new one
       continue;
@@ -495,13 +497,14 @@ void TrajSampler::computeLabelBSplineSampling(
     cand_rollout.recomputeTrajectory();
     cand_rollout.replaceFirstPoint(state_est_plus);
     getRolloutData(cand_rollout);
-
+    ros::WallTime t1 = ros::WallTime::now();
     computeCost(state_array_h_, reference_states_h_, input_array_h_,
                 reference_inputs_h_, cost_array_h_, accumulated_cost_array_h_);
     kd_tree->query_kdtree(state_array_h_, accumulated_cost_array_h_, traj_len_,
                           query_every_nth_point, true);
     cand_rollout.setCost(static_cast<double>(accumulated_cost_array_h_[0]));
-
+    // if(step<100)
+    //   std::cout<<"time: "<<t0-t2<<"  "<<t1-t0<<"  "<<ros::WallTime::now() - t1<<std::endl;
     // accept/reject sample
     double curr_cost = cand_rollout.getCost();
     double alpha = std::min(1.0, (std::exp(-0.01 * curr_cost) + 1.0e-7) /

@@ -163,7 +163,7 @@ void TrajectoryExt::convertToWorldFrame() {
     Eigen::Vector3d linvel_world = q_pitch_roll * point.velocity;
     double heading = 0.0;
     if (yawing_enabled_) {
-      heading = std::atan2(linvel_wf.y(), linvel_wf.x());
+      heading = std::atan2(-linvel_wf.x(), linvel_wf.y());
     }
 
     Eigen::Quaterniond q_heading = Eigen::Quaterniond(
@@ -368,7 +368,7 @@ void TrajectoryExt::resamplePointsFromPolyCoeffs() {
     Eigen::Vector3d linvel_body = q_pitch_roll.inverse() * traj_point.velocity;
     double heading = 0.0;
     if (yawing_enabled_) {
-      heading = std::atan2(traj_point.velocity.y(), traj_point.velocity.x());
+      heading = std::atan2(-traj_point.velocity.x(), traj_point.velocity.y());
     }
 
     Eigen::Quaterniond q_heading = Eigen::Quaterniond(
@@ -553,6 +553,8 @@ void TrajectoryExt::recomputeTrajectory() {
 void TrajectoryExt::recomputeVelocity() {
   // iterate over points, compute numerical derivatives
   TrajectoryExtPoint prev_point = points_.front();
+  
+
   for (int i = 1; i < points_.size(); i++) {
     TrajectoryExtPoint curr_point = points_.at(i);
 
@@ -591,7 +593,7 @@ void TrajectoryExt::recomputeAcceleration() {
     if (yawing_enabled_) {
       //      heading = std::atan2(linvel_body.y(), linvel_body.x());
       heading =
-          std::atan2(points_.at(i).velocity.y(), points_.at(i).velocity.x());
+          std::atan2(-points_.at(i).velocity.x(), points_.at(i).velocity.y());
     }
 
     Eigen::Quaterniond q_heading = Eigen::Quaterniond(

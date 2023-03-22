@@ -84,7 +84,7 @@ class FlightmareBridge {
   bool perform_sgm_;
 
   // image transport and SGM stuff
-  image_transport::Publisher unity_rgb_pub_;
+  image_transport::Publisher unity_rgb_pub_, unity_rgb_right_pub_;
   image_transport::Publisher unity_depth_pub_;
   image_transport::Publisher sgm_depth_pub_;
 

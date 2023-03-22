@@ -6,4 +6,4 @@ geometry_msgs/Pose ref_pose
 
 geometry_msgs/Twist ref_vel
 
-quadrotor_msgs/Trajectory[] trajectories
+rpg_quadrotor_msgs/Trajectory[] trajectories

@@ -9,11 +9,12 @@ import pandas as pd
 
 from cv_bridge import CvBridge, CvBridgeError
 from nav_msgs.msg import Odometry
-from quadrotor_msgs.msg import TrajectoryPoint
-from quadrotor_msgs.msg import Trajectory
+from rpg_quadrotor_msgs.msg import TrajectoryPoint
+from rpg_quadrotor_msgs.msg import Trajectory
 from sensor_msgs.msg import Image
 from std_msgs.msg import Bool
 from std_msgs.msg import Empty
+from std_msgs.msg import Float32
 from scipy.spatial.transform import Rotation as R
 from agile_autonomy_msgs.msg import MultiTrajectory
 import tensorflow as tf
@@ -70,18 +71,25 @@ class PlanBase(object):
             self.image_sub = rospy.Subscriber("/" + self.quad_name + "/" + self.rgb_topic, Image,
                                               self.callback_image, queue_size=1)
         if self.config.use_depth:
-            self.depth_sub = rospy.Subscriber("/" + self.quad_name + "/" + self.depth_topic, Image,
+            self.depth_sub = rospy.Subscriber("depth", Image,
                                               self.callback_depth, queue_size=1)
         self.land_sub = rospy.Subscriber("/" + self.config.quad_name + "/autopilot/land",
                                          Empty, self.callback_land, queue_size=1)
-        self.fly_sub = rospy.Subscriber("/" + self.quad_name + "/agile_autonomy/start_flying", Bool,
+        self.fly_sub = rospy.Subscriber("/" + self.quad_name + "/agile_autonomy_ab/start_flying", Bool,
                                         self.callback_fly, queue_size=1)  # Receive and fly
+        self.mission_stop_sub = rospy.Subscriber("/" + self.quad_name + "/agile_autonomy_ab/stop_mission", Empty,
+                                                 self.callback_stop, queue_size=1)
         self.traj_pub = rospy.Publisher("/{}/trajectory_predicted".format(self.quad_name), MultiTrajectory,
                                             queue_size=1)  # Stop upon some condition
+        self.time_cost_pub = rospy.Publisher("/{}/iter_time".format(self.quad_name), Float32, queue_size=1)
+
         self.timer_input = rospy.Timer(rospy.Duration(1. / self.config.input_update_freq),
                                        self.update_input_queues)
         self.timer_net = rospy.Timer(rospy.Duration(1. / self.config.network_frequency),
                                      self._generate_plan)
+
+    def callback_stop(self, data):
+        self.reference_initialized = False;
 
     def load_trajectory(self, traj_fname):
         self.reference_initialized = False
@@ -125,7 +133,9 @@ class PlanBase(object):
                                               reference_point.pose.position.y,
                                               reference_point.pose.position.z]).reshape((3, 1))
             next_point_distance = np.linalg.norm(reference_position_wf - quad_position)
+            # print(reference_position_wf, "_____", next_point_distance, "_____", distance)
             if next_point_distance > distance:
+                # self.reference_progress = self.reference_progress+1
                 break
             else:
                 self.reference_progress = k
@@ -157,6 +167,7 @@ class PlanBase(object):
         if (not data.data):
             self.maneuver_complete = True
             self.use_network = False
+            self.reference_initialized = False
 
     def experiment_report(self):
         print("experiment done")
@@ -294,8 +305,10 @@ class PlanBase(object):
         self.odometry = odometry
 
 
-    def _convert_to_traj(self, net_prediction):
+    def _convert_to_traj(self, net_prediction, idx):
         net_prediction = np.reshape(net_prediction, ((self.config.state_dim, self.config.out_seq_len)))
+        np.savetxt('./traj/mp'+str(rospy.Time.now()), net_prediction, fmt='%1.4e', delimiter=" ")
+
         pred_traj = Trajectory()
         sample_time = np.arange(start=1, stop=self.config.out_seq_len + 1) / 10.0
         for k, t in enumerate(sample_time):
@@ -354,6 +367,7 @@ class PlanBase(object):
         goal_dir = np.squeeze(goal_dir).tolist()
 
         state_inputs = imu_states + goal_dir
+        # print(state_inputs)
         self.state_queue.append(state_inputs)
         # Prepare images
         if self.config.use_rgb:
@@ -435,8 +449,10 @@ class PlanBase(object):
             alpha = net_predictions[0][i]
             # convert in a traj
             if i == 0 or (best_alpha / alpha > self.config.accept_thresh):
-                traj_pred = self._convert_to_traj(traj_pred)
+                traj_pred = self._convert_to_traj(traj_pred, i)
                 multi_traj.trajectories.append(traj_pred)
+                # print(traj_pred)
+                # np.savetxt('./mp'+str(i), traj_pred, fmt="%d", delimiter=" ")
         self.traj_pub.publish(multi_traj)
         if net_in_control:
             self.n_times_net += 1
@@ -454,7 +470,12 @@ class PlanBase(object):
             print("Stopping because no depth received")
             self.config.perform_inference = False
             self.callback_land(Empty())
-
+        t1 = rospy.get_time()
         self._prepare_net_inputs()
         results = self.learner.inference(self.net_inputs)
+        t2 = rospy.get_time()
+        iter_time = Float32()
+        iter_time.data = t2 - t1
+        self.time_cost_pub.publish(iter_time)
+        # print("net time: ", t2-t1)
         self.trajectory_decision(results)

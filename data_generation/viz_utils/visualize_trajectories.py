@@ -72,7 +72,7 @@ pc_cutoff_z = args.pc_cutoff_z
 if pc_cutoff_z is not None:
     pc_cutoff_z = float(pc_cutoff_z)
 else:
-    pc_cutoff_z = 5.0
+    pc_cutoff_z = 10.0
 
 visualize_pointcloud = True
 visualize_odometry = False

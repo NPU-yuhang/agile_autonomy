@@ -51,6 +51,24 @@ SgmGpu::SgmGpu(const ros::NodeHandle &parent_node_handle, const int cols,
   cudaStreamCreate(&stream3_);
 }
 
+SgmGpu::SgmGpu(const ros::NodeHandle& parent_node_handle) 
+  : memory_allocated_(false), cols_(0), rows_(0)
+{
+  private_node_handle_.reset(
+    new ros::NodeHandle(parent_node_handle, "libsgm_gpu")
+  );
+  // Get parameters used in SGM algorithm
+  p1_ = static_cast<uint8_t>(private_node_handle_->param("p1", 6));
+  p2_ = static_cast<uint8_t>(private_node_handle_->param("p2", 96));
+  check_consistency_ = private_node_handle_->param("check_consistency", true);
+
+  // Create streams
+  cudaStreamCreate(&stream1_);
+  cudaStreamCreate(&stream2_);
+  cudaStreamCreate(&stream3_);
+}
+
+
 SgmGpu::~SgmGpu() {
   freeMemory();
 

@@ -61,7 +61,7 @@ class MessageHandler():
     def publish_autopilot_start(self):
         msg = Empty()
         self.autopilot_start.publish(msg)
-        time.sleep(25)
+        time.sleep(23)
 
     def publish_goto_pose(self, pose=[0, 0, 3.]):
         msg = PoseStamped()
@@ -74,7 +74,7 @@ class MessageHandler():
         msg.pose.orientation.z = 0.0
         msg.pose.orientation.w = 1.0
         self.autopilot_pose_cmd.publish(msg)
-        time.sleep(3)
+        time.sleep(1)
 
 def setup_sim(msg_handler, config):
     print("==========================")
@@ -110,7 +110,7 @@ def place_quad_at_start(msg_handler):
     '''
     # Make sure to use GT odometry in this step
     msg_handler.publish_autopilot_off()
-    # reset quad to initial position
+    # # reset quad to initial position
     msg_handler.publish_arm_bridge()
     msg_handler.publish_autopilot_start()
     return

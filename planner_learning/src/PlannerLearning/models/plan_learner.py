@@ -200,6 +200,7 @@ class PlanLearner(object):
         dataset_val = create_dataset(self.config.test_dir,
                                      self.config, training=False)
         self.cost_loss_v.add_pointclouds(dataset_val.pointclouds)
+        print("mode: ", self.config.mode)
         if self.config.mode == 'loss':
             tf.keras.backend.set_learning_phase(0)
             for k, (features, label, _) in enumerate(tqdm(dataset_val.batched_dataset)):

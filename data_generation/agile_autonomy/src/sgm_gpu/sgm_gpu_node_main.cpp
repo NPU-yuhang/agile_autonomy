@@ -14,7 +14,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ***********************************************************************/
 
-#include "sgm_gpu_node.h"
+#include "sgm_gpu/sgm_gpu_node.h"
 #include <ros/ros.h>
 
 int main(int argc, char** argv)

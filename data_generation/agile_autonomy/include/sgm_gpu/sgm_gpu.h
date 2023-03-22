@@ -85,6 +85,7 @@ class SgmGpu {
    * @brief Constructor which use namespace <parent>/libsgm_gpu for ROS param
    */
   SgmGpu(const ros::NodeHandle &parent_node_handle, const int cols, const int rows);
+  SgmGpu(const ros::NodeHandle& parent_node_handle) ;
   ~SgmGpu();
 
   bool computeDisparity(const sensor_msgs::Image &left_image,

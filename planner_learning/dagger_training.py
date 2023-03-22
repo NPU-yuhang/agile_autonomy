@@ -9,6 +9,7 @@ import rospy
 import shutil
 from PlannerLearning import PlannerLearning
 from std_msgs.msg import Bool, Empty
+from nav_msgs.msg import Path
 from common import setup_sim, place_quad_at_start, MessageHandler
 import json
 import random
@@ -24,8 +25,13 @@ class Trainer():
         self.settings = settings
         np.random.seed(self.settings.random_seed)
         self.expert_done = False
+        self.mission_process = False
         self.label_sub = rospy.Subscriber("/hummingbird/labelling_completed", Bool,
                                           self.callback_expert, queue_size=1)  # Expert is done, decide what to do.
+        self.goal_sub = rospy.Subscriber("/hummingbird/goal_point", Path,
+                                         self.callback_goal, queue_size=1)
+        self.training_state_pub = rospy.Publisher("/hummingbird/training_state", Bool,
+                                                  queue_size=1)
         self.msg_handler = MessageHandler()
 
     def callback_expert(self, data):
@@ -33,9 +39,14 @@ class Trainer():
         print("Expert done with data labelling")
         self.expert_done = data.data
 
+    def callback_goal(self, data):
+        self.mission_process = True;
+        # print("get new mission")
+
     def start_experiment(self, rollout_idx):
         self.msg_handler.publish_reset()
-        place_quad_at_start(self.msg_handler)
+        # place_quad_at_start(self.msg_handler)
+        time.sleep(1)
         print("Doing experiment {}".format(rollout_idx))
         # Save point_cloud
         if self.settings.execute_nw_predictions:
@@ -60,7 +71,10 @@ class Trainer():
             for d in removable_rollout_folders:
                 string = "rm -rf {}".format(d)
                 os.system(string)
-        while rollout_idx < self.settings.max_rollouts:
+        while not rospy.is_shutdown():
+            if not self.mission_process:
+                continue
+
             if len(os.listdir(self.settings.expert_folder)) > 0:
                 rollout_dir = os.path.join(self.settings.expert_folder,
                                            sorted(os.listdir(self.settings.expert_folder))[-1])
@@ -72,10 +86,11 @@ class Trainer():
             # whatever is not in the environment will be ignored
             self.msg_handler.publish_tree_spacing(spacing)
             self.msg_handler.publish_obj_spacing(spacing)
-            unity_start_pos = setup_sim(self.msg_handler, config=self.settings)
+            # unity_start_pos = setup_sim(self.msg_handler, config=self.settings)
             self.start_experiment(rollout_idx)
             start = time.time()
             exp_failed = False
+
             while not self.learner.maneuver_complete:
                 time.sleep(0.1)
                 duration = time.time() - start
@@ -90,6 +105,8 @@ class Trainer():
                                                sorted(os.listdir(self.settings.expert_folder))[-1])
                     rm_string = "rm -rf {}".format(rollout_dir)
                     os.system(rm_string)
+                self.mission_process = False
+
             else:  # Experiment Worked: label it and save it
                 # final logging if experiment worked
                 metrics_experiment = self.learner.experiment_report()
@@ -97,7 +114,7 @@ class Trainer():
                     print("{} is {:.3f}".format(name, value))
                 rollout_idx += 1
                 # Wait for expert to be done labelling (block gazebo meanwhile)
-                os.system("rosservice call /gazebo/pause_physics")
+                # os.system("rosservice call /gazebo/pause_physics")
                 # Send message to get expert running
                 self.learner.run_mppi_expert()
                 while not self.expert_done:
@@ -109,14 +126,24 @@ class Trainer():
                     rollout_dir, self.settings.train_dir)
                 os.system(move_string)
                 if rollout_idx % self.settings.train_every_n_rollouts == 0:
+                    msg = Bool()
+                    msg.data = True
+                    self.training_state_pub.publish(msg)
                     self.learner.train()
+                else:
+                    msg = Bool()
+                    msg.data = False
+                    self.training_state_pub.publish(msg)
+
                 if rollout_idx % self.settings.increase_net_usage_every_n_rollouts == 0:
                     self.settings.fallback_radius_expert = \
                         np.minimum(
                             self.settings.fallback_radius_expert + 0.5, 50.0)
                     print("Setting threshold to {}".format(
                         self.settings.fallback_radius_expert))
-                os.system("rosservice call /gazebo/unpause_physics")
+                self.mission_process = False
+
+                # os.system("rosservice call /gazebo/unpause_physics")
 
     def perform_testing(self):
         self.learner = PlannerLearning.PlanLearning(
@@ -138,9 +165,13 @@ class Trainer():
             # Start Experiment
             rollout_idx = 0
             report_buffer = []
-            while rollout_idx < self.settings.max_rollouts:
-                self.learner.maneuver_complete = False  # Just to be sure
-                unity_start_pos = setup_sim(self.msg_handler, config=self.settings)
+            print("____________________________", spacing, "___________________________")
+            while not rospy.is_shutdown():
+                if not self.mission_process:
+                    continue
+
+                # self.learner.maneuver_complete = False  # Just to be sure
+                # unity_start_pos = setup_sim(self.msg_handler, config=self.settings)
                 self.start_experiment(rollout_idx)
                 output_file_buffer = os.path.join(exp_log_dir,
                                                 "experiment_metrics.json")
@@ -154,6 +185,7 @@ class Trainer():
                         print("Current experiment failed. Will try again")
                         exp_failed = True
                         break
+                print(exp_failed, "  ", self.learner.planner_succed)
                 if ((not exp_failed) and (self.learner.planner_succed)):
                     # final logging
                     metrics_experiment = self.learner.experiment_report()
@@ -186,6 +218,7 @@ class Trainer():
                                                sorted(os.listdir(self.settings.expert_folder))[-1])
                     rm_string = "rm -rf {}".format(rollout_dir)
                     os.system(rm_string)
+                self.mission_process = False
 
 def main():
     parser = argparse.ArgumentParser(description='Train Planning network.')

@@ -39,6 +39,7 @@ void computeReferenceTrajectoryPosBased(
   for (auto point : full_reference.points) {
     if (point_idx >= *reference_progress) {
       double curr_dist = (point.position - curr_position).norm();
+      // std::cout<<"curr_dist: "<<curr_dist<<" point: "<<point.position.transpose()<<" cur: "<<curr_position.transpose()<<std::endl;
       if (curr_dist <= min_dist) {
         min_dist = curr_dist;
       } else {

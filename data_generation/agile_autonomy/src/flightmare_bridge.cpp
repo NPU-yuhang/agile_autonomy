@@ -133,6 +133,7 @@ FlightmareBridge::FlightmareBridge(const ros::NodeHandle& nh,
   // Image Transport Publisher
   image_transport::ImageTransport it(pnh_);
   unity_rgb_pub_ = it.advertise("unity_rgb", 1);
+  unity_rgb_right_pub_ = it.advertise("unity_rgb_right", 1);
   unity_depth_pub_ = it.advertise("unity_depth", 1);
   sgm_depth_pub_ = it.advertise("sgm_depth", 1);
 
@@ -423,7 +424,11 @@ void FlightmareBridge::getImages(
   sensor_msgs::ImagePtr rgb_msg =
       cv_bridge::CvImage(std_msgs::Header(), "bgr8", rviz_rgb_img).toImageMsg();
   rgb_msg->header.stamp = state_estimate.timestamp;
+    sensor_msgs::ImagePtr rgb_right_msg =
+      cv_bridge::CvImage(std_msgs::Header(), "bgr8", right_rgb_img).toImageMsg();
+  rgb_right_msg->header.stamp = state_estimate.timestamp;
   unity_rgb_pub_.publish(rgb_msg);
+  unity_rgb_right_pub_.publish(rgb_right_msg);
   sensor_msgs::ImagePtr depth_msg =
       cv_bridge::CvImage(std_msgs::Header(), "mono16", gt_depth_uint16)
           .toImageMsg();

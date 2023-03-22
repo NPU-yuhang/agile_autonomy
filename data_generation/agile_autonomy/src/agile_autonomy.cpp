@@ -27,38 +27,25 @@ AgileAutonomy::AgileAutonomy(const ros::NodeHandle& nh,
     ros::shutdown();
   }
 
-  visualizer_ =
-      std::make_shared<visualizer::Visualizer>(nh_, pnh_, "agile_autonomy");
+  visualizer_ = std::make_shared<visualizer::Visualizer>(nh_, pnh_, "agile_autonomy");
   // Subscribers
-  toggle_experiment_sub_ =
-      nh_.subscribe("fpv_quad_looping/execute_trajectory", 1,
-                    &AgileAutonomy::startExecutionCallback, this);
-  odometry_sub_ = nh_.subscribe("ground_truth/odometry", 1,
-                                &AgileAutonomy::odometryCallback, this,
-                                ros::TransportHints().tcpNoDelay());
-  setup_logging_sub_ =
-      nh_.subscribe("save_pc", 1, &AgileAutonomy::setupLoggingCallback, this);
-  traj_sub_ = nh_.subscribe("trajectory_predicted", 1,
-                            &AgileAutonomy::trajectoryCallback, this);
-  start_flying_sub_ = pnh_.subscribe("start_flying", 1,
-                                     &AgileAutonomy::stopFlyingCallback, this);
-  land_sub_ =
-      nh_.subscribe("autopilot/land", 1, &AgileAutonomy::landCallback, this);
-  off_sub_ =
-      nh_.subscribe("autopilot/off", 1, &AgileAutonomy::offCallback, this);
-  force_hover_sub_ = nh_.subscribe("autopilot/force_hover", 1,
-                                   &AgileAutonomy::forceHoverCallback, this);
-  completed_global_plan_sub_ =
-      nh_.subscribe("completed_global_plan", 1,
-                    &AgileAutonomy::completedGlobalPlanCallback, this);
+  toggle_experiment_sub_ = nh_.subscribe("fpv_quad_looping/execute_trajectory", 1, &AgileAutonomy::startExecutionCallback, this);
+  odometry_sub_ = nh_.subscribe("ground_truth/odometry", 1, &AgileAutonomy::odometryCallback, this, ros::TransportHints().tcpNoDelay());
+  setup_logging_sub_ = nh_.subscribe("save_pc", 1, &AgileAutonomy::setupLoggingCallback, this);
+  traj_sub_ = nh_.subscribe("trajectory_predicted", 1, &AgileAutonomy::trajectoryCallback, this);
+  start_flying_sub_ = pnh_.subscribe("start_flying", 1, &AgileAutonomy::stopFlyingCallback, this);
+  land_sub_ = nh_.subscribe("autopilot/land", 1, &AgileAutonomy::landCallback, this);
+  off_sub_ = nh_.subscribe("autopilot/off", 1, &AgileAutonomy::offCallback, this);
+  force_hover_sub_ = nh_.subscribe("autopilot/force_hover", 1, &AgileAutonomy::forceHoverCallback, this);
+  completed_global_plan_sub_ = nh_.subscribe("completed_global_plan", 1, &AgileAutonomy::completedGlobalPlanCallback, this);
 
   // Publishers
-  control_command_pub_ = nh_.advertise<quadrotor_msgs::ControlCommand>(
+  control_command_pub_ = nh_.advertise<rpg_quadrotor_msgs::ControlCommand>(
       "autopilot/control_command_input", 1);
   start_flying_pub_ = pnh_.advertise<std_msgs::Bool>("start_flying", 1);
   ref_progress_pub_ = pnh_.advertise<std_msgs::Int32>("reference_progress", 1);
   setpoint_pub_ =
-      pnh_.advertise<quadrotor_msgs::TrajectoryPoint>("setpoint", 1);
+      pnh_.advertise<rpg_quadrotor_msgs::TrajectoryPoint>("setpoint", 1);
   compute_global_path_pub_ =
       pnh_.advertise<std_msgs::Float32>("compute_global_plan", 1);
 
@@ -651,6 +638,7 @@ void AgileAutonomy::odometryCallback(const nav_msgs::OdometryConstPtr& msg) {
         reference_trajectory.points.front());
     visualizer_->visualizeExecutedTrajectory(*msg);
     setpoint_pub_.publish(reference_trajectory.points.front().toRosMessage());
+    std::cout<<"reference_trajectory points size: "<<reference_trajectory.points.size()<<std::endl;
     control_cmd = base_controller_.run(predicted_state, reference_trajectory,
                                        base_controller_params_);
     control_cmd.timestamp = time_now;
@@ -722,7 +710,7 @@ void AgileAutonomy::publishControlCommand(
     const quadrotor_common::ControlCommand& control_command) {
   if (state_machine_ == StateMachine::kExecuteExpert ||
       state_machine_ == StateMachine::kNetwork) {
-    quadrotor_msgs::ControlCommand control_cmd_msg;
+    rpg_quadrotor_msgs::ControlCommand control_cmd_msg;
     control_cmd_msg = control_command.toRosMessage();
     control_command_pub_.publish(control_cmd_msg);
     state_predictor_.pushCommandToQueue(control_command);
@@ -817,7 +805,7 @@ int main(int argc, char** argv) {
   ros::init(argc, argv, "agile_autonomy");
   agile_autonomy::AgileAutonomy agile_autonomy;
 
-  ros::MultiThreadedSpinner spinner(4);
+  ros::MultiThreadedSpinner spinner(6);
   spinner.spin();
 
   return 0;

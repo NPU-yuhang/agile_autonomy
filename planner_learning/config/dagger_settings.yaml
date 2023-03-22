@@ -15,12 +15,12 @@ img_width: 224
 img_height: 224
 data_generation:
   max_rollouts: 100
-  train_every_n_rollouts: 10
+  train_every_n_rollouts: 70
   expert_folder: "../data_generation/data"
-  increase_net_usage_every_n_rollouts: 10
+  increase_net_usage_every_n_rollouts: 70
 checkpoint:
   resume_training: True
-  resume_file: "models/ckpt-50"
+  resume_file: "models/ckpt-88"
 train:
   max_training_epochs: 5
   batch_size: 8

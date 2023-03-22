@@ -17,9 +17,9 @@ img_width: 224
 img_height: 224
 checkpoint:
   resume_training: True
-  resume_file: "models/ckpt-50"
+  resume_file: "models/ckpt-62"
 test_time:
-  max_rollouts: 50
+  max_rollouts: 1
   test_folder: "/tmp/test"
   expert_folder: "../data_generation/data/"
   fallback_radius_expert: 0.0 #mt unused at test time
@@ -41,4 +41,4 @@ unity:
   random_seed: 0
   # x,y,z, yaw
   # forest
-  unity_start_pos: [[-20.,20.,0.,0]]
+  unity_start_pos: [[0.0,0.0,0]]
